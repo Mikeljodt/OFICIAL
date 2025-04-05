@@ -30,340 +30,6 @@ import {
 
 // Local Client interface removed, using imported Client from '@/lib/db'
 
-const ClientsPage = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  // Use the Client type imported from @/lib/db for the state
-  // 'status' was removed as it was unused
-  const { clients } = useSelector((state: RootState) => state.clients);
-  const { toast } = useToast()
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
-  const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
-  const [isEditClientDialogOpen, setIsEditClientDialogOpen] = useState(false);
-  // Use the imported Client type for selectedClient
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
-  const [clientIdToDelete, setClientIdToDelete] = useState<number | null>(null);
-  const [isMachineDepositDialogOpen, setIsMachineDepositDialogOpen] = useState(false);
-
-  useEffect(() => {
-    dispatch(fetchClients());
-  }, [dispatch]);
-
-  // Use client.name instead of client.establishmentName based on imported Client type
-  const filteredClients = clients.filter(client =>
-    (client.name && client.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (client.businessType && client.businessType.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (client.city && client.city.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  const handleViewHistory = (clientId: number) => {
-    setSelectedClientId(clientId);
-    dispatch(fetchCollectionsByClient(clientId));
-    setIsHistoryDialogOpen(true);
-  };
-
-  const handleOpenNewClientDialog = () => {
-    setIsNewClientDialogOpen(true);
-  };
-
-  const handleCloseNewClientDialog = () => {
-    setIsNewClientDialogOpen(false);
-  };
-
-  const handleOpenMachineDepositDialog = (clientId: number) => {
-    const clientToSign = clients.find(client => client.id === clientId);
-    if (clientToSign) {
-      setSelectedClient(clientToSign);
-      setIsMachineDepositDialogOpen(true);
-    }
-  };
-
-  const handleCloseMachineDepositDialog = () => {
-    setIsMachineDepositDialogOpen(false);
-    setSelectedClient(null);
-  };
-
-  // Use the imported Client type for newClientData
-  const handleCreateClient = (newClientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'machines'>) => {
-    dispatch(addClient(newClientData));
-    toast({
-      title: "Éxito",
-      description: "Cliente creado correctamente.",
-    })
-    // We might need to fetch the newly created client ID if Date.now() isn't reliable
-    // For now, assuming the structure allows finding it or using a temporary approach
-    // Find the client potentially just added (this might be fragile)
-    const potentiallyNewClient = clients.find(c => c.name === newClientData.name && c.phone === newClientData.phone) || { id: Date.now(), ...newClientData }; // Fallback ID
-    handleOpenMachineDepositDialog(potentiallyNewClient.id);
-    handleCloseNewClientDialog();
-  };
-
-  const handleOpenEditClientDialog = (clientId: number) => {
-    const clientToEdit = clients.find(client => client.id === clientId);
-    if (clientToEdit) {
-      setSelectedClient(clientToEdit);
-      setIsEditClientDialogOpen(true);
-    }
-  };
-
-  const handleCloseEditClientDialog = () => {
-    setIsEditClientDialogOpen(false);
-    setSelectedClient(null);
-  };
-
-  // Use the imported Client type for updatedClientData
-  const handleUpdateClient = (updatedClientData: Partial<Client> & { id: number }) => {
-    dispatch(updateClient(updatedClientData));
-    toast({
-      title: "Éxito",
-      description: "Cliente actualizado correctamente.",
-    })
-    handleCloseEditClientDialog();
-  };
-
-  const handleDeleteClient = (clientId: number) => {
-    setClientIdToDelete(clientId);
-    setIsDeleteConfirmationOpen(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (clientIdToDelete !== null) {
-      dispatch(deleteClient(clientIdToDelete));
-      toast({
-        title: "Éxito",
-        description: "Cliente eliminado correctamente.",
-      });
-      setIsDeleteConfirmationOpen(false);
-      setClientIdToDelete(null);
-    }
-  };
-
-  const handleCancelDelete = () => {
-    setIsDeleteConfirmationOpen(false);
-    setClientIdToDelete(null);
-  };
-
-  const handleViewDetails = (clientId: number) => {
-    // Implement logic to view client details
-    console.log(`View details for client ID: ${clientId}`);
-    // Potentially open another dialog or navigate to a details page
-  };
-
-  const handleImportClients = () => {
-    // Implement logic to import clients
-    console.log('Import clients');
-  };
-
-  const handleExportClients = () => {
-    // Implement logic to export clients
-    console.log('Export clients');
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Clientes</h1>
-          <p className="text-muted-foreground">Gestiona tus clientes y sus máquinas</p>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 justify-between">
-        <div className="space-x-2">
-          <Button variant="default" onClick={handleOpenNewClientDialog}>
-            <Plus className="mr-2 h-4 w-4" /> Nuevo Cliente
-          </Button>
-        </div>
-        <div className="space-x-2">
-          <Button variant="violet" onClick={handleImportClients}>
-            <Upload className="mr-2 h-4 w-4" /> Importar
-          </Button>
-          <Button variant="violet" onClick={handleExportClients}>
-            <Download className="mr-2 h-4 w-4" /> Exportar
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex items-center space-x-2 mb-4">
-        <Search className="h-5 w-5 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nombre, tipo de negocio o ciudad..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
-
-      {/* Diálogo para historial de recaudaciones */}
-      <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>Historial de Recaudaciones</DialogTitle>
-            <DialogDescription>
-              {/* Use client.name */}
-              {selectedClientId && clients.find(c => c.id === selectedClientId)?.name}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedClientId && (
-            <CollectionHistory
-              // Ensure 'type' prop is definitely removed
-              clientId={selectedClientId}
-              machineId={null}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Diálogo para nuevo cliente */}
-      <Dialog open={isNewClientDialogOpen} onOpenChange={setIsNewClientDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>Nuevo Cliente</DialogTitle>
-            <DialogDescription>
-              Ingresa los datos del nuevo cliente. Los campos marcados con * son obligatorios.
-            </DialogDescription>
-          </DialogHeader>
-          <NewClientForm onCreate={handleCreateClient} onCancel={handleCloseNewClientDialog} />
-        </DialogContent>
-      </Dialog>
-
-      {/* Diálogo para firma de máquina en depósito */}
-      <Dialog open={isMachineDepositDialogOpen} onOpenChange={setIsMachineDepositDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>Firma de Contrato de Depósito de Máquina</DialogTitle>
-            <DialogDescription>
-              Firma el contrato de depósito de la máquina.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedClient && (
-            <MachineDepositSignatureForm
-              clientData={selectedClient}
-              onCancel={handleCloseMachineDepositDialog}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Diálogo para editar cliente */}
-      <Dialog open={isEditClientDialogOpen} onOpenChange={setIsEditClientDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>Editar Cliente</DialogTitle>
-            <DialogDescription>
-              Modifica los datos del cliente.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedClient && (
-            <EditClientForm
-              client={selectedClient}
-              onUpdate={handleUpdateClient}
-              onCancel={handleCloseEditClientDialog}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteConfirmationOpen} onOpenChange={setIsDeleteConfirmationOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará el cliente permanentemente. ¿Estás seguro?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelDelete}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Card className="bg-card">
-        <CardHeader className="pb-2">
-          <CardTitle>Listado de Clientes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full table-auto">
-              <thead className="text-sm text-muted-foreground">
-                <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-left">Nombre</th>
-                  <th className="px-4 py-3 text-left">Tipo</th>
-                  <th className="px-4 py-3 text-left">Propietario</th>
-                  <th className="px-4 py-3 text-left">Ubicación</th>
-                  <th className="px-4 py-3 text-left">Contacto</th>
-                  <th className="px-4 py-3 text-center">Máquinas</th>
-                  <th className="px-4 py-3 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredClients.map((client) => (
-                  <tr key={client.id} className="border-b border-border">
-                    {/* Use client.name and client.owner */}
-                    <td className="px-4 py-3 font-medium">{client.name}</td>
-                    <td className="px-4 py-3">{client.businessType || '-'}</td>
-                    <td className="px-4 py-3">{client.owner || '-'}</td>
-                    <td className="px-4 py-3">{client.city || '-'}</td>
-                    <td className="px-4 py-3">{client.phone || '-'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                        {client.machines}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewHistory(client.id)}
-                        >
-                          <History className="mr-1 h-4 w-4" />
-                          Historial
-                        </Button>
-                        <Button variant="violet" size="sm" onClick={() => handleOpenEditClientDialog(client.id)}>
-                          <Edit className="mr-1 h-4 w-4" />
-                          Editar
-                        </Button>
-                        {/* Trigger for delete confirmation */}
-                        <AlertDialogTrigger asChild>
-                           <Button variant="destructive" size="sm" onClick={() => handleDeleteClient(client.id)}>
-                               <Trash className="mr-1 h-4 w-4" />
-                               Eliminar
-                           </Button>
-                        </AlertDialogTrigger>
-                        {/* Removed duplicate AlertDialog inside the loop */}
-                        <Button variant="default" size="sm" onClick={() => handleViewDetails(client.id)}>
-                          <Info className="mr-1 h-4 w-4" />
-                          Detalle
-                        </Button>
-                        <Button variant="lime" size="sm" onClick={() => handleOpenMachineDepositDialog(client.id)}>
-                          Firma Depósito
-                        </Button>
-                        {/* Assuming depositoSignature might be added later or is handled differently */}
-                        {/* {client.depositoSignature && (
-                          <CheckCircle className="text-green-500 h-5 w-5" />
-                        )} */}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
 // --- Sub-components using the imported Client type ---
 
 // NewClientForm component
@@ -923,6 +589,345 @@ const EditClientForm: React.FC<EditClientFormProps> = ({ client, onUpdate, onCan
       </div>
     </form>
   );
+};
+
+
+const ClientsPage = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  // Get status and error from the slice as well
+  const { clients, status, error } = useSelector((state: RootState) => state.clients);
+  const { toast } = useToast()
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
+  const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
+  const [isEditClientDialogOpen, setIsEditClientDialogOpen] = useState(false);
+  // Use the imported Client type for selectedClient
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  // Removed isDeleteConfirmationOpen and clientIdToDelete states
+  const [isMachineDepositDialogOpen, setIsMachineDepositDialogOpen] = useState(false);
+
+  useEffect(() => {
+    dispatch(fetchClients());
+  }, [dispatch]);
+
+  // Log status, error, and clients data for debugging
+  useEffect(() => {
+    console.log('Clients Status:', status);
+    console.log('Clients Error:', error);
+    console.log('Clients Data:', clients);
+  }, [status, error, clients]);
+
+  // Use client.name instead of client.establishmentName based on imported Client type
+  const filteredClients = clients.filter(client =>
+    (client.name && client.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (client.businessType && client.businessType.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (client.city && client.city.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const handleViewHistory = (clientId: number) => {
+    setSelectedClientId(clientId);
+    dispatch(fetchCollectionsByClient(clientId));
+    setIsHistoryDialogOpen(true);
+  };
+
+  const handleOpenNewClientDialog = () => {
+    setIsNewClientDialogOpen(true);
+  };
+
+  const handleCloseNewClientDialog = () => {
+    setIsNewClientDialogOpen(false);
+  };
+
+  const handleOpenMachineDepositDialog = (clientId: number) => {
+    const clientToSign = clients.find(client => client.id === clientId);
+    if (clientToSign) {
+      setSelectedClient(clientToSign);
+      setIsMachineDepositDialogOpen(true);
+    }
+  };
+
+  const handleCloseMachineDepositDialog = () => {
+    setIsMachineDepositDialogOpen(false);
+    setSelectedClient(null);
+  };
+
+  // Use the imported Client type for newClientData
+  const handleCreateClient = (newClientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'machines'>) => {
+    dispatch(addClient(newClientData));
+    toast({
+      title: "Éxito",
+      description: "Cliente creado correctamente.",
+    })
+    // We might need to fetch the newly created client ID if Date.now() isn't reliable
+    // For now, assuming the structure allows finding it or using a temporary approach
+    // Find the client potentially just added (this might be fragile)
+    const potentiallyNewClient = clients.find(c => c.name === newClientData.name && c.phone === newClientData.phone) || { id: Date.now(), ...newClientData }; // Fallback ID
+    handleOpenMachineDepositDialog(potentiallyNewClient.id);
+    handleCloseNewClientDialog();
+  };
+
+  const handleOpenEditClientDialog = (clientId: number) => {
+    const clientToEdit = clients.find(client => client.id === clientId);
+    if (clientToEdit) {
+      setSelectedClient(clientToEdit);
+      setIsEditClientDialogOpen(true);
+    }
+  };
+
+  const handleCloseEditClientDialog = () => {
+    setIsEditClientDialogOpen(false);
+    setSelectedClient(null);
+  };
+
+  // Use the imported Client type for updatedClientData
+  const handleUpdateClient = (updatedClientData: Partial<Client> & { id: number }) => {
+    dispatch(updateClient(updatedClientData));
+    toast({
+      title: "Éxito",
+      description: "Cliente actualizado correctamente.",
+    })
+    handleCloseEditClientDialog();
+  };
+
+  // Renamed and modified to accept clientId directly
+  const handleConfirmDeleteClient = (clientId: number) => {
+    dispatch(deleteClient(clientId));
+    toast({
+      title: "Éxito",
+      description: "Cliente eliminado correctamente.",
+    });
+    // No need to manage open state here, AlertDialog handles it
+  };
+
+  // Removed handleDeleteClient and handleCancelDelete
+
+  const handleViewDetails = (clientId: number) => {
+    // Implement logic to view client details
+    console.log(`View details for client ID: ${clientId}`);
+    // Potentially open another dialog or navigate to a details page
+  };
+
+  const handleImportClients = () => {
+    // Implement logic to import clients
+    console.log('Import clients');
+  };
+
+  const handleExportClients = () => {
+    // Implement logic to export clients
+    console.log('Export clients');
+  };
+
+  // Conditional rendering based on status
+  if (status === 'loading') {
+    return <div className="p-4">Cargando clientes...</div>;
+  }
+
+  if (status === 'failed') {
+    return <div className="p-4 text-red-600">Error al cargar clientes: {error}</div>;
+  }
+
+  // Render content only if status is 'succeeded'
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Clientes</h1>
+          <p className="text-muted-foreground">Gestiona tus clientes y sus máquinas</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 justify-between">
+        <div className="space-x-2">
+          <Button variant="default" onClick={handleOpenNewClientDialog}>
+            <Plus className="mr-2 h-4 w-4" /> Nuevo Cliente
+          </Button>
+        </div>
+        <div className="space-x-2">
+          <Button variant="violet" onClick={handleImportClients}>
+            <Upload className="mr-2 h-4 w-4" /> Importar
+          </Button>
+          <Button variant="violet" onClick={handleExportClients}>
+            <Download className="mr-2 h-4 w-4" /> Exportar
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center space-x-2 mb-4">
+        <Search className="h-5 w-5 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nombre, tipo de negocio o ciudad..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+
+      {/* Diálogo para historial de recaudaciones */}
+      <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Historial de Recaudaciones</DialogTitle>
+            <DialogDescription>
+              {/* Use client.name */}
+              {selectedClientId && clients.find(c => c.id === selectedClientId)?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedClientId && (
+            <CollectionHistory
+              // Ensure 'type' prop is definitely removed
+              clientId={selectedClientId}
+              machineId={null}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para nuevo cliente */}
+      <Dialog open={isNewClientDialogOpen} onOpenChange={setIsNewClientDialogOpen}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Nuevo Cliente</DialogTitle>
+            <DialogDescription>
+              Ingresa los datos del nuevo cliente. Los campos marcados con * son obligatorios.
+            </DialogDescription>
+          </DialogHeader>
+          <NewClientForm onCreate={handleCreateClient} onCancel={handleCloseNewClientDialog} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para firma de máquina en depósito */}
+      <Dialog open={isMachineDepositDialogOpen} onOpenChange={setIsMachineDepositDialogOpen}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Firma de Contrato de Depósito de Máquina</DialogTitle>
+            <DialogDescription>
+              Firma el contrato de depósito de la máquina.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedClient && (
+            <MachineDepositSignatureForm
+              clientData={selectedClient}
+              onCancel={handleCloseMachineDepositDialog}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para editar cliente */}
+      <Dialog open={isEditClientDialogOpen} onOpenChange={setIsEditClientDialogOpen}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Editar Cliente</DialogTitle>
+            <DialogDescription>
+              Modifica los datos del cliente.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedClient && (
+            <EditClientForm
+              client={selectedClient}
+              onUpdate={handleUpdateClient}
+              onCancel={handleCloseEditClientDialog}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Removed the single AlertDialog from here */}
+
+      <Card className="bg-card">
+        <CardHeader className="pb-2">
+          <CardTitle>Listado de Clientes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full table-auto">
+              <thead className="text-sm text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="px-4 py-3 text-left">Nombre</th>
+                  <th className="px-4 py-3 text-left">Tipo</th>
+                  <th className="px-4 py-3 text-left">Propietario</th>
+                  <th className="px-4 py-3 text-left">Ubicación</th>
+                  <th className="px-4 py-3 text-left">Contacto</th>
+                  <th className="px-4 py-3 text-center">Máquinas</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredClients.map((client) => (
+                  <tr key={client.id} className="border-b border-border">
+                    {/* Use client.name and client.owner */}
+                    <td className="px-4 py-3 font-medium">{client.name}</td>
+                    <td className="px-4 py-3">{client.businessType || '-'}</td>
+                    <td className="px-4 py-3">{client.owner || '-'}</td>
+                    <td className="px-4 py-3">{client.city || '-'}</td>
+                    <td className="px-4 py-3">{client.phone || '-'}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                        {client.machines}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewHistory(client.id)}
+                        >
+                          <History className="mr-1 h-4 w-4" />
+                          Historial
+                        </Button>
+                        <Button variant="violet" size="sm" onClick={() => handleOpenEditClientDialog(client.id)}>
+                          <Edit className="mr-1 h-4 w-4" />
+                          Editar
+                        </Button>
+                        {/* Moved AlertDialog inside the loop for each client */}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm"> {/* Removed onClick */}
+                              <Trash className="mr-1 h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción eliminará al cliente "{client.name}" permanentemente. ¿Estás seguro?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel> {/* No onClick needed */}
+                                Cancelar
+                              </AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleConfirmDeleteClient(client.id)}>
+                                Eliminar
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        <Button variant="default" size="sm" onClick={() => handleViewDetails(client.id)}>
+                          <Info className="mr-1 h-4 w-4" />
+                          Detalle
+                        </Button>
+                        <Button variant="lime" size="sm" onClick={() => handleOpenMachineDepositDialog(client.id)}>
+                          Firma Depósito
+                        </Button>
+                        {/* Assuming depositoSignature might be added later or is handled differently */}
+                        {/* {client.depositoSignature && (
+                          <CheckCircle className="text-green-500 h-5 w-5" />
+                        )} */}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  ); // Added missing closing parenthesis for the return statement
 };
 
 export default ClientsPage;
